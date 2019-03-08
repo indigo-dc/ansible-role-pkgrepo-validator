@@ -1,0 +1,18 @@
+- name: Check mandatory variables are defined
+  assert:
+    that:
+      - repository is defined
+
+- name: Install dependencies
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ prerequisites[(ansible_os_family | lower)] }}"
+
+- name: Load debian-specific configuration
+  include: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Load RHEL-specific configuration
+  include: redhat.yml
+  when: ansible_os_family == 'RedHat'

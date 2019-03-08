@@ -1,0 +1,6 @@
+---
+installed_pkgs_file: installed.pkgs
+prerequisites:
+    redhat:
+        - yum-utils
+        - grep

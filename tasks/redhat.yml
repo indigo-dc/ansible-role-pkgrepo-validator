@@ -1,0 +1,49 @@
+---
+
+- set_fact:
+    all_pkgs_file: "{{ installed_pkgs_file | dirname }}/all.pkgs"
+
+- name: Concatenate the repository list
+  set_fact:
+    yum_enablerepo_str: "--enablerepo={{ repository | join(' --enablerepo=') }}"
+
+- name: Get all the packages from UMD/CMD repositories
+  shell: "/usr/bin/repoquery --qf=\"%{name}\" --disablerepo=* {{ yum_enablerepo_str }} -a"
+  register: pkglist
+
+- name: Save package list in file
+  copy: 
+    content: "{{ pkglist.stdout }}"
+    dest: "{{ all_pkgs_file }}"
+
+- name: Find out whether the file with the excluded packages does exist
+  stat:
+    path: "{{ excluded_pkgs_file }}"
+  register: stat_excluded_pkgs_file
+  when: excluded_pkgs_file is defined
+
+- name: Save unmatched packages (from excluded)
+  shell: "/bin/fgrep -v -f {{ excluded_pkgs_file }} {{ all_pkgs_file }}"
+  register: pkglist_unmatched
+  when: stat_excluded_pkgs_file.stat.exists
+
+- debug:
+    msg: "{{ pkglist_unmatched }}"
+
+- name: Save package list in file
+  copy: 
+    content: "{{ pkglist_unmatched.stdout }}"
+    dest: "{{ installed_pkgs_file }}"
+  when: pkglist_unmatched is defined
+    
+- name: Install all the packages
+  shell: "yum -y install {{ yum_enablerepo_str }} --setopt=protected_multilib=false $(cat {{ installed_pkgs_file }})"
+  args:
+    warn: False
+  when: (ansible_distribution == "CentOS") or (ansible_distribution == "Scientific") and (ansible_distribution_major_version == "6")
+
+- name: Install all the packages
+  shell: "yum -y install {{ yum_enablerepo_str }} $(cat {{ installed_pkgs_file }})"
+  args:
+    warn: False
+  when: (ansible_distribution == "CentOS") and (ansible_distribution_major_version == "7")
