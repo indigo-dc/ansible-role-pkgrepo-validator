@@ -1,5 +1,4 @@
 ---
-
 - set_fact:
     all_pkgs_file: "{{ installed_pkgs_file | dirname }}/all.pkgs"
 
@@ -11,31 +10,22 @@
   shell: "/usr/bin/repoquery --qf=\"%{name}\" --disablerepo=* {{ yum_enablerepo_str }} -a"
   register: pkglist
 
-- name: Save package list in file
+- name: Save package list in file before adding further modifications
   copy: 
     content: "{{ pkglist.stdout }}"
     dest: "{{ all_pkgs_file }}"
 
-- name: Find out whether the file with the excluded packages does exist
-  stat:
-    path: "{{ excluded_pkgs_file }}"
-  register: stat_excluded_pkgs_file
-  when: excluded_pkgs_file is defined
-
-- name: Save unmatched packages (from excluded)
-  shell: "/bin/fgrep -v -f {{ excluded_pkgs_file }} {{ all_pkgs_file }}"
-  register: pkglist_unmatched
-  when: stat_excluded_pkgs_file.stat.exists
-
-- debug:
-    msg: "{{ pkglist_unmatched }}"
-
-- name: Save package list in file
-  copy: 
-    content: "{{ pkglist_unmatched.stdout }}"
-    dest: "{{ installed_pkgs_file }}"
-  when: pkglist_unmatched is defined
+- name: Get unmatched list of packages
+  include_tasks: unmatch_pkgs.yml
+  loop: "{{ excluded_pkgs_file }}"
+  loop_control:
+    loop_var: excluded_pkgs_file_item
     
+- name: Save resultant package list in installed_pkgs_file
+  copy: 
+    src: "{{ all_pkgs_file }}"
+    dest: "{{ installed_pkgs_file }}"
+
 - name: Install all the packages
   shell: "yum -y install {{ yum_enablerepo_str }} --setopt=protected_multilib=false $(cat {{ installed_pkgs_file }})"
   args:

@@ -1,0 +1,17 @@
+---
+- name: Find out whether the file with the excluded packages does exist
+  stat:
+    path: "{{ excluded_pkgs_file_item }}"
+  register: stat_excluded_pkgs_file
+  when: excluded_pkgs_file_item is defined
+
+- name: Save unmatched packages (from excluded)
+  shell: "/bin/fgrep -v -f {{ excluded_pkgs_file_item }} {{ all_pkgs_file }}"
+  register: pkglist_unmatched
+  when: stat_excluded_pkgs_file.stat.exists
+
+- name: Save package list in file
+  copy: 
+    content: "{{ pkglist_unmatched.stdout }}"
+    dest: "{{ all_pkgs_file }}"
+  when: pkglist_unmatched is defined
