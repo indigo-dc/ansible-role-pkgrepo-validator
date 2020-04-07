@@ -3,6 +3,18 @@
     that:
       - repository is defined
 
+- name: Check exclude files exist (stat)
+  stat:
+    path: "{{ item }}"
+  register: exclude_files
+  with_items: "{{ excluded_pkgs_file }}"
+
+- name: Check exclude files exist
+  assert:
+    that:
+      - "{{ item.stat.exists }}"
+  with_items: "{{ exclude_files.results }}"
+
 - name: Install dependencies
   package:
     name: "{{ item }}"
